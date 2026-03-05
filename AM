@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Nada's Heart</title>
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Raleway:wght@300;400&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 1920px;
+            height: 1080px;
+            background: #000;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            width: 1080px;
+            height: 1080px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 72px 0 90px;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 1080px;
+            height: 1080px;
+        }
+
+        .top,
+        .bottom {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .title {
+            font-family: 'Great Vibes', cursive;
+            font-size: 90px;
+            color: #fff;
+            letter-spacing: 3px;
+            opacity: 0;
+            animation: fadeUp 1.2s ease forwards 0.3s;
+        }
+
+        .song-title {
+            font-family: 'Great Vibes', cursive;
+            font-size: 46px;
+            color: #fff;
+            letter-spacing: 1px;
+            opacity: 0;
+            animation: fadeUp 1.2s ease forwards 4.2s;
+        }
+
+        .progress-wrap {
+            opacity: 0;
+            animation: fadeUp 1.2s ease forwards 4.4s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .progress-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-family: 'Raleway', sans-serif;
+            font-size: 15px;
+            font-weight: 300;
+            color: #aaa;
+            letter-spacing: 2px;
+            user-select: none;
+        }
+
+        .time {
+            min-width: 36px;
+            text-align: center;
+        }
+
+        .progress-bar {
+            position: relative;
+            width: 460px;
+            height: 2px;
+            background: #333;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        .progress-bar:hover .progress-dot {
+            transform: translate(-50%, -50%) scale(1.4);
+        }
+
+        .progress-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 0%;
+            height: 100%;
+            background: #fff;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        .progress-dot {
+            position: absolute;
+            top: 50%;
+            left: 0%;
+            transform: translate(-50%, -50%);
+            width: 10px;
+            height: 10px;
+            background: #fff;
+            border-radius: 50%;
+            pointer-events: none;
+            transition: transform 0.15s ease;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .ctrl-btn {
+            font-family: 'Raleway', sans-serif;
+            font-size: 13px;
+            font-weight: 300;
+            color: #555;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: color 0.2s;
+            border: none;
+            background: none;
+            padding: 4px 8px;
+        }
+
+        .ctrl-btn:hover {
+            color: #fff;
+        }
+
+        .ctrl-btn.active {
+            color: #fff;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <audio id="audio" src="song.mp3" preload="auto"></audio>
+
+    <div class="card">
+        <canvas id="c" width="1080" height="1080"></canvas>
+
+        <div class="top">
+            <div class="title">Nada's Heart</div>
+        </div>
+
+        <div class="bottom">
+            <div class="song-title">No.1 Party Anthem</div>
+            <div class="progress-wrap">
+                <div class="progress-row">
+                    <span class="time" id="tCur">0:00</span>
+                    <div class="progress-bar" id="pBar">
+                        <div class="progress-fill" id="pFill"></div>
+                        <div class="progress-dot" id="pDot"></div>
+                    </div>
+                    <span class="time" id="tTotal">4:03</span>
+                </div>
+                <div class="controls">
+                    <button class="ctrl-btn" id="pauseBtn">▶ &nbsp;play</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── Heart drawing ────────────────────────────────────────────
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+        const W = 1080, H = 1080;
+        const CX = W / 2, CY = H / 2 + 30;
+        const SCALE = 240;
+
+        function heartPt(t) {
+            const x = 16 * Math.pow(Math.sin(t), 3);
+            const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+            return { x: CX + x * (SCALE / 16), y: CY + y * (SCALE / 16) };
+        }
+
+        const OUTLINE_N = 3000;
+        const outline = [];
+        for (let i = 0; i <= OUTLINE_N; i++)
+            outline.push(heartPt((i / OUTLINE_N) * Math.PI * 2 - Math.PI / 2));
+
+        function heartVertExtent(px) {
+            let yMin = null, yMax = null;
+            for (let i = 0; i < outline.length - 1; i++) {
+                const x0 = outline[i].x, y0 = outline[i].y;
+                const x1 = outline[i + 1].x, y1 = outline[i + 1].y;
+                if ((x0 <= px && x1 >= px) || (x1 <= px && x0 >= px)) {
+                    if (Math.abs(x1 - x0) < 0.001) continue;
+                    const t = (px - x0) / (x1 - x0);
+                    const iy = y0 + t * (y1 - y0);
+                    if (yMin === null || iy < yMin) yMin = iy;
+                    if (yMax === null || iy > yMax) yMax = iy;
+                }
+            }
+            return { yMin, yMax };
+        }
+
+        const BAR_STEP = 4.5, BAR_W = 1.4;
+        const bars = [], xStart = CX - SCALE, xEnd = CX + SCALE;
+        for (let bx = xStart; bx <= xEnd; bx += BAR_STEP) {
+            const { yMin, yMax } = heartVertExtent(bx);
+            if (yMin !== null && yMax !== null && yMax - yMin > 2)
+                bars.push({ x: bx, y1: yMin, y2: yMax });
+        }
+
+        function smooth(t) { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }
+
+        const HEART_DELAY = 800, HEART_DUR = 3400;
+        let heartT0 = null;
+
+        function drawHeart(ts) {
+            if (!heartT0) heartT0 = ts;
+            const elapsed = ts - heartT0 - HEART_DELAY;
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, W, H);
+            if (elapsed < 0) { requestAnimationFrame(drawHeart); return; }
+            const p = Math.min(elapsed / HEART_DUR, 1);
+            ctx.strokeStyle = '#fff';
+            ctx.lineCap = 'round';
+            ctx.lineWidth = BAR_W;
+            const revealX = xStart + smooth(p) * (xEnd - xStart);
+            for (const bar of bars) {
+                if (bar.x > revealX) break;
+                const bp = smooth(Math.min((revealX - bar.x) / (BAR_STEP * 8), 1));
+                const midY = (bar.y1 + bar.y2) / 2;
+                const halfH = ((bar.y2 - bar.y1) / 2) * bp;
+                ctx.beginPath();
+                ctx.moveTo(bar.x, midY - halfH);
+                ctx.lineTo(bar.x, midY + halfH);
+                ctx.stroke();
+            }
+            if (p < 1) requestAnimationFrame(drawHeart);
+        }
+        requestAnimationFrame(drawHeart);
+
+        // ── Audio + progress bar ─────────────────────────────────────
+        const audio = document.getElementById('audio');
+        const pFill = document.getElementById('pFill');
+        const pDot = document.getElementById('pDot');
+        const tCur = document.getElementById('tCur');
+        const tTotal = document.getElementById('tTotal');
+        const pBar = document.getElementById('pBar');
+        const pauseBtn = document.getElementById('pauseBtn');
+
+        function fmt(sec) {
+            if (isNaN(sec)) return '0:00';
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        // Update bar visuals from audio.currentTime
+        function syncBar() {
+            const dur = audio.duration || 243;
+            const pct = (audio.currentTime / dur) * 100;
+            pFill.style.width = pct + '%';
+            pDot.style.left = pct + '%';
+            tCur.textContent = fmt(audio.currentTime);
+        }
+
+        // Sync on every animation frame for smooth movement
+        function tick() {
+            syncBar();
+            requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+
+        // When metadata loads, show real duration
+        audio.addEventListener('loadedmetadata', () => {
+            tTotal.textContent = fmt(audio.duration);
+        });
+
+        // Pause / play button
+        pauseBtn.addEventListener('click', () => {
+            if (audio.paused) {
+                audio.play();
+                pauseBtn.textContent = '❚❚  pause';
+                pauseBtn.classList.add('active');
+            } else {
+                audio.pause();
+                pauseBtn.textContent = '▶  play';
+                pauseBtn.classList.remove('active');
+            }
+        });
+
+        // Song ended
+        audio.addEventListener('ended', () => {
+            pauseBtn.textContent = '↺  replay';
+            pauseBtn.classList.remove('active');
+        });
+
+        // Seek by clicking the bar
+        pBar.addEventListener('click', e => {
+            const rect = pBar.getBoundingClientRect();
+            const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            audio.currentTime = frac * (audio.duration || 243);
+            syncBar();
+        });
+
+        // Drag to seek
+        let dragging = false;
+        pBar.addEventListener('mousedown', () => dragging = true);
+        window.addEventListener('mousemove', e => {
+            if (!dragging) return;
+            const rect = pBar.getBoundingClientRect();
+            const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            audio.currentTime = frac * (audio.duration || 243);
+            syncBar();
+        });
+        window.addEventListener('mouseup', () => dragging = false);
+
+        // Space bar = pause/play
+        window.addEventListener('keydown', e => {
+            if (e.code === 'Space') { e.preventDefault(); pauseBtn.click(); }
+        });
+    </script>
+</body>
+
+</html>
